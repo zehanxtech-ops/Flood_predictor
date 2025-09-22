@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flood Threat Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #controls {
+            margin-bottom: 20px;
+        }
+        #controls input {
+            width: 80px;
+            margin-right: 10px;
+        }
+        canvas {
+            max-width: 1000px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Flood Threat Real-Time Dashboard</h2>
+
+    <div id="controls">
+        <h4>Enter Features:</h4>
+        {% for feature in features %}
+            <label>{{ feature }}: <input type="number" id="{{ feature }}" value="0"></label>
+        {% endfor %}
+        <button id="predictBtn">Predict</button>
+    </div>
+
+    <canvas id="threatChart" width="1000" height="400"></canvas>
+
+    <script>
+        const ctx = document.getElementById('threatChart').getContext('2d');
+        const labels = [];
+        const dataPoints = [];
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Predicted Flood Threat',
+                    data: dataPoints,
+                    borderColor: 'red',
+                    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                    tension: 0.4,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        function addPrediction(prediction) {
+            const now = new Date().toLocaleTimeString();
+            labels.push(now);
+            dataPoints.push(prediction);
+            if (labels.length > 20) {
+                labels.shift();
+                dataPoints.shift();
+            }
+            chart.update();
+        }
+
+        async function fetchPrediction() {
+            const payload = {};
+            // Dynamically get all input fields inside #controls and build the payload
+            document.querySelectorAll('#controls input[type="number"]').forEach(input => {
+                payload[input.id] = parseFloat(input.value) || 0;
+            });
+
+            try {
+                const response = await $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    data: payload
+                });
+                if (response.prediction !== undefined) {
+                    addPrediction(response.prediction);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Predict every 5 seconds automatically
+        setInterval(fetchPrediction, 5000);
+
+        // Predict on button click
+        document.getElementById('predictBtn').addEventListener('click', fetchPrediction);
+    </script>
+</body>
+</html>
